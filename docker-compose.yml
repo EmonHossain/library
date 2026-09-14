@@ -1,0 +1,59 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: lms-mysql
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        cat > /tmp/lms-privileges.sql <<'SQL'
+        CREATE DATABASE IF NOT EXISTS `${MYSQL_DATABASE:?MYSQL_DATABASE is required}`;
+        CREATE USER IF NOT EXISTS '${DB_USERNAME:?DB_USERNAME is required}'@'%' IDENTIFIED BY '${DB_PASSWORD:?DB_PASSWORD is required}';
+        ALTER USER '${DB_USERNAME:?DB_USERNAME is required}'@'%' IDENTIFIED BY '${DB_PASSWORD:?DB_PASSWORD is required}';
+        GRANT ALL PRIVILEGES ON `${MYSQL_DATABASE:?MYSQL_DATABASE is required}`.* TO '${DB_USERNAME:?DB_USERNAME is required}'@'%';
+        FLUSH PRIVILEGES;
+        SQL
+        exec /usr/local/bin/docker-entrypoint.sh mysqld --init-file=/tmp/lms-privileges.sql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE is required}
+    ports:
+      - "${MYSQL_PORT:?MYSQL_PORT is required}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - lms-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: lms-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: ${DB_URL:?DB_URL is required}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:?SPRING_PROFILES_ACTIVE is required}
+      APP_STORAGE_LOCAL_ROOT: ${APP_STORAGE_LOCAL_ROOT-}
+      APP_STORAGE_S3_BUCKET: ${APP_STORAGE_S3_BUCKET-}
+      APP_STORAGE_S3_REGION: ${APP_STORAGE_S3_REGION-}
+      APP_STORAGE_S3_PREFIX: ${APP_STORAGE_S3_PREFIX-}
+    ports:
+      - "${APP_PORT:?APP_PORT is required}:8080"
+    volumes:
+      - upload-data:/app/uploads
+    networks:
+      - lms-network
+
+networks:
+  lms-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  upload-data:

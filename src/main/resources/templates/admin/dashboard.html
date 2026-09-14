@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Admin')}"></head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="mx-auto max-w-6xl px-4 py-8">
+    <div th:replace="~{fragments/layout :: alerts}"></div>
+    <h1 class="mt-6 text-3xl font-semibold tracking-tight">Administration</h1>
+    <div class="mt-6 grid gap-4 md:grid-cols-3">
+        <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <p class="text-sm font-medium text-slate-500">Books</p>
+            <p th:text="${bookCount}" class="mt-2 text-3xl font-semibold">0</p>
+        </div>
+        <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <p class="text-sm font-medium text-slate-500">Users</p>
+            <p th:text="${userCount}" class="mt-2 text-3xl font-semibold">0</p>
+        </div>
+        <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <p class="text-sm font-medium text-slate-500">Active borrows</p>
+            <p th:text="${activeBorrowCount}" class="mt-2 text-3xl font-semibold">0</p>
+        </div>
+    </div>
+    <div class="mt-6 grid gap-4 md:grid-cols-3">
+        <a th:href="@{/admin/books}" class="rounded-lg border border-slate-200 bg-white p-5 font-medium shadow-sm hover:border-slate-400">Manage books</a>
+        <a th:href="@{/admin/users}" class="rounded-lg border border-slate-200 bg-white p-5 font-medium shadow-sm hover:border-slate-400">Manage users</a>
+        <a th:href="@{/admin/borrows}" class="rounded-lg border border-slate-200 bg-white p-5 font-medium shadow-sm hover:border-slate-400">Borrow records</a>
+    </div>
+</main>
+</body>
+</html>

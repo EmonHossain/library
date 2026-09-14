@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Manage Books')}"></head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="mx-auto max-w-6xl px-4 py-8">
+    <div th:replace="~{fragments/layout :: alerts}"></div>
+    <div class="mt-6 flex items-center justify-between">
+        <h1 class="text-3xl font-semibold tracking-tight">Books</h1>
+        <a th:href="@{/admin/books/new}" class="rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Add book</a>
+    </div>
+    <div class="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <table class="w-full text-left text-sm">
+            <thead class="bg-slate-100 text-xs uppercase text-slate-600">
+            <tr>
+                <th class="px-4 py-3">Cover</th>
+                <th class="px-4 py-3">Title</th>
+                <th class="px-4 py-3">Category</th>
+                <th class="px-4 py-3">Copies</th>
+                <th class="px-4 py-3"></th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+            <tr th:each="book : ${books}">
+                <td class="px-4 py-3">
+                    <img th:src="${book.coverImageFile != null} ? @{/files/{id}(id=${book.coverImageFile.id})} : @{/images/book-placeholder.svg}"
+                         th:alt="${book.title + ' cover'}"
+                         onerror="this.onerror=null;this.src='/images/book-placeholder.svg';"
+                         class="h-20 w-14 rounded-md bg-slate-100 object-cover">
+                </td>
+                <td class="px-4 py-3">
+                    <div th:text="${book.title}" class="font-medium text-slate-950">Title</div>
+                    <div th:text="${book.author + ' | ' + book.isbn}" class="text-slate-500">Author</div>
+                    <div class="mt-1 flex gap-3 text-xs text-slate-500">
+                        <a th:if="${book.pdfFile != null}" th:href="@{/files/{id}(id=${book.pdfFile.id})}" target="_blank" class="underline">PDF</a>
+                        <a th:if="${book.coverImageFile != null}" th:href="@{/files/{id}(id=${book.coverImageFile.id})}" target="_blank" class="underline">Cover</a>
+                    </div>
+                </td>
+                <td th:text="${book.category.name}" class="px-4 py-3"></td>
+                <td th:text="${book.availableCopies + '/' + book.totalCopies}" class="px-4 py-3"></td>
+                <td class="px-4 py-3">
+                    <div class="flex justify-end gap-2">
+                        <a th:href="@{/admin/books/{id}/edit(id=${book.id})}" class="rounded-md border border-slate-300 px-3 py-2 font-medium text-slate-800 hover:bg-slate-50">Edit</a>
+                        <form th:action="@{/admin/books/{id}/delete(id=${book.id})}" method="post">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                            <button type="submit" class="rounded-md border border-red-300 px-3 py-2 font-medium text-red-700 hover:bg-red-50">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>
