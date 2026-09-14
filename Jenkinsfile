@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label 'jenkins-build-agent'
+        label 'jenkins-app_builder-agent-jdk-25'
     }
 
     tools {
