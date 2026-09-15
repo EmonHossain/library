@@ -39,7 +39,7 @@ pipeline {
         always {
             // Parses target/checkstyle-result.xml and publishes visual trend charts to Jenkins
             recordIssues(
-                tools: [checkstyle(pattern: '**/target/checkstyle-result.xml')]
+                tools: [checkStyle(pattern: '**/target/checkstyle-result.xml')]
             )
         }
         success {
