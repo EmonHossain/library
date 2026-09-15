@@ -23,6 +23,28 @@ pipeline {
                 '''
             }
         }
+
+        stage('Unit Tests') {
+            steps {
+                echo "=== Starting Unit Tests ==="
+                sh '''
+                    echo "Unit tests started at: $(date)"
+                    mvn test
+                    echo "Unit tests completed at: $(date)"
+                '''
+            }
+        }
+
+        stage('CheckStyle') {
+            steps {
+                echo "=== Starting Checkstyle Analysis ==="
+                sh '''
+                    echo "Checkstyle analysis started at: $(date)"
+                    mvn checkstyle:checkstyle
+                    echo "Checkstyle analysis completed at: $(date)"
+                '''
+                }
+        }
     }
 
     post {
