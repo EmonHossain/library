@@ -11,7 +11,7 @@ pipeline {
             steps {
                 echo "=== Running Build, Tests, and Checkstyle ==="
                 // Executes tests (JaCoCo) and Checkstyle XML generation in a single pass
-                sh 'mvn -B clean prepare-package checkstyle:checkstyle'
+                sh 'mvn -B clean package checkstyle:checkstyle'
             }
         }
 
