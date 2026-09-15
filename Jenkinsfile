@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'maven:3.9.16-eclipse-temurin-25'
-            args '--entrypoint="" -v maven-repo-cache:/root/.m2'
+            args '--entrypoint=""--network ci-cd-net -v maven-repo-cache:/root/.m2'
         }
     }
 
