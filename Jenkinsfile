@@ -7,47 +7,40 @@ pipeline {
     }
 
     stages {
-        stage('Build') {
+        stage('Build, Test & Checkstyle') {
             steps {
-                echo "=== Starting Build Process ==="
-                sh '''
-                    echo "Java Version:"
-                    java -version
-                    
-                    echo "Maven Version:"
-                    mvn -version
-                    
-                    echo "Maven build started at: $(date)"
-                    mvn -B clean package
-                    echo "Maven build completed at: $(date)"
-                '''
+                echo "=== Running Build, Tests, and Checkstyle ==="
+                // Executes tests (JaCoCo) and Checkstyle XML generation in a single pass
+                sh 'mvn -B clean prepare-package checkstyle:checkstyle'
             }
         }
 
-        stage('Unit Tests') {
+        stage('SonarQube Analysis') {
             steps {
-                echo "=== Starting Unit Tests ==="
-                sh '''
-                    echo "Unit tests started at: $(date)"
-                    mvn test
-                    echo "Unit tests completed at: $(date)"
-                '''
-            }
-        }
-
-        stage('CheckStyle') {
-            steps {
-                echo "=== Starting Checkstyle Analysis ==="
-                sh '''
-                    echo "Checkstyle analysis started at: $(date)"
-                    mvn checkstyle:checkstyle
-                    echo "Checkstyle analysis completed at: $(date)"
-                '''
+                echo "=== Starting SonarQube Analysis ==="
+                withSonarQubeEnv('SonarQubeServer') {
+                    sh 'mvn -B sonar:sonar'
                 }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                echo "=== Waiting for SonarQube Quality Gate Result ==="
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
         }
     }
 
     post {
+        always {
+            // Parses target/checkstyle-result.xml and publishes visual trend charts to Jenkins
+            recordIssues(
+                tools: [checkStyle(pattern: '**/target/checkstyle-result.xml')]
+            )
+        }
         success {
             archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: false, fingerprint: true
         }
