@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'maven:3.9.16-eclipse-temurin-25'
-            args '-v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.m2:/root/.m2'
+            args '-v maven-repo-cache:/root/.m2'
         }
     }
 
