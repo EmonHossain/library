@@ -29,7 +29,7 @@ pipeline {
                 echo "=== Starting SonarQube Analysis ==="
                 withSonarQubeEnv('SonarQubeServer') {
                     sh '''
-                        mvn -B sonar:sonar
+                        mvn -B sonar:sonar \
                             -s settings.xml \
                             -Dnexus.username=${NEXUS_CREDS_USR} \
                             -Dnexus.password=${NEXUS_CREDS_PSW}
