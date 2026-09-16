@@ -6,12 +6,21 @@ pipeline {
         }
     }
 
+    environment {
+        NEXUS_CREDS = credentials('6e114bfa-4783-40a7-b859-8390849767df')
+    }
+
     stages {
         stage('Build, Test & Checkstyle') {
             steps {
                 echo "=== Running Build, Tests, and Checkstyle ==="
                 // Executes tests (JaCoCo) and Checkstyle XML generation in a single pass
-                sh 'mvn -B clean package checkstyle:checkstyle'
+                sh '''
+                    mvn -B clean package checkstyle:checkstyle \
+                        -s settings.xml \
+                        -Dnexus.username=${NEXUS_CREDS_USR} \
+                        -Dnexus.password=${NEXUS_CREDS_PSW}
+                '''
             }
         }
 
@@ -19,7 +28,12 @@ pipeline {
             steps {
                 echo "=== Starting SonarQube Analysis ==="
                 withSonarQubeEnv('SonarQubeServer') {
-                    sh 'mvn -B sonar:sonar'
+                    sh '''
+                        mvn -B sonar:sonar
+                            -s settings.xml \
+                            -Dnexus.username=${NEXUS_CREDS_USR} \
+                            -Dnexus.password=${NEXUS_CREDS_PSW}
+                    '''
                 }
             }
         }
@@ -31,6 +45,19 @@ pipeline {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
+            }
+        }
+
+        stage('Deploy to Nexus') {
+            steps {
+                echo "=== Deploying Artifacts to Nexus Repository ==="
+                sh '''
+                    mvn -B deploy \
+                        -s settings.xml \
+                        -DskipTests \
+                        -Dnexus.username=${NEXUS_CREDS_USR} \
+                        -Dnexus.password=${NEXUS_CREDS_PSW}
+                '''
             }
         }
     }

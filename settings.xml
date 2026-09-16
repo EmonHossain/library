@@ -1,0 +1,38 @@
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+    <servers>
+        <!-- Used when pulling dependencies via the mirror -->
+        <server>
+            <id>nexus-public</id>
+            <username>${nexus.username}</username>
+            <password>${nexus.password}</password>
+        </server>
+
+        <!-- Used when deploying release builds via 'mvn deploy' -->
+        <server>
+            <id>nexus-releases</id>
+            <username>${nexus.username}</username>
+            <password>${nexus.password}</password>
+        </server>
+
+        <!-- Used when deploying snapshot builds via 'mvn deploy' -->
+        <server>
+            <id>nexus-snapshots</id>
+            <username>${nexus.username}</username>
+            <password>${nexus.password}</password>
+        </server>
+    </servers>
+
+    <mirrors>
+        <!-- Routes ALL dependency requests through Nexus group repo -->
+        <mirror>
+            <id>nexus-public</id>
+            <mirrorOf>*</mirrorOf>
+            <url>http://nexus:8081/repository/maven-public/</url>
+        </mirror>
+    </mirrors>
+
+</settings>
