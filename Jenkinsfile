@@ -1,10 +1,10 @@
 pipeline {
     agent {
-        docker {
-            image 'maven:3.9.16-eclipse-temurin-25'
-            label 'jenkins-app-builder-agent-jdk-25'
-            args '--entrypoint="" --network ci-cd-net -v maven-repo-cache:/root/.m2'
-        }
+        label 'jenkins-app-builder-agent-jdk-25' // Targets Container 2 directly
+    }
+
+    tools {
+        maven 'Maven-3.9.16' // Installed automatically by Jenkins on Container 2
     }
 
     environment {
