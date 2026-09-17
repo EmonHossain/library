@@ -1,7 +1,6 @@
 pipeline {
     agent {
         label 'jenkins-app-builder-agent-jdk-25' // Targets Container 2 directly
-        args '--network ci-cd-net -v maven-repo-cache:/root/.m2'
     }
 
     tools {
