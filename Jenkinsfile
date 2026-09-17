@@ -4,7 +4,7 @@ pipeline {
     }
 
     tools {
-        maven 'Maven-3.9.16' // Installed automatically by Jenkins on Container 2
+        maven 'maven-3.9.16' // Installed automatically by Jenkins on Container 2
     }
 
     environment {
