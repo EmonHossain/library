@@ -1,20 +1,16 @@
 pipeline {
     agent {
-        label 'jenkins-app-builder-agent-jdk-25' // Targets Container 2 directly
-    }
-
-    tools {
-        maven 'maven-3.9.16' // Installed automatically by Jenkins on Container 2
+        docker {
+            image 'maven:3.9.16-eclipse-temurin-25'
+            args '--entrypoint="" --network ci-cd-net -v maven-repo-cache:/root/.m2 -v /var/run/docker.sock:/var/run/docker.sock -v /usr/local/bin/docker:/usr/local/bin/docker'
+        }
     }
 
     environment {
         NEXUS_CREDS = credentials('6e114bfa-4783-40a7-b859-8390849767df')
         AWS_ECR_CREDS = credentials('ecr:us-east-1:awscreds')
-        IMAGE_NAME = "637254479904.dkr.ecr.us-east-1.amazonaws.com/jenkins/images"
-        ARTIFACT_REGISTRY = "637254479904.dkr.ecr.us-east-1.amazonaws.com"
-        //registryCredential = 'ecr:us-east-1:awscreds'
-        //imageName = "716657688884.dkr.ecr.us-east-1.amazonaws.com/vprofileappimg"
-        //vprofileRegistry = "https://716657688884.dkr.ecr.us-east-1.amazonaws.com"
+        IMAGE_NAME = "jenkins/images"
+        ARTIFACT_REGISTRY = "https://637254479904.dkr.ecr.us-east-1.amazonaws.com"
     }
 
     stages {
@@ -72,7 +68,7 @@ pipeline {
             steps {
                 echo "=== Building and Pushing Docker Image ==="
                 script {
-                    dockerImage = docker.build(IMAGE_NAME +":$BUILD_NUMBER", "Dockerfile")
+                    dockerImage = docker.build("${ARTIFACT_REGISTRY}/${IMAGE_NAME}:$BUILD_NUMBER", ".")
 
                 }
             }
@@ -82,7 +78,7 @@ pipeline {
             steps {
                 echo "=== Pushing Docker Image to Registry ==="
                 script {
-                    docker.withRegistry(BUILD_REGISTRY, AWS_ECR_CREDS) {
+                    docker.withRegistry("${ARTIFACT_REGISTRY}", "${AWS_ECR_CREDS}") {
                         dockerImage.push("$BUILD_NUMBER")
                         dockerImage.push('latest')
                     }
