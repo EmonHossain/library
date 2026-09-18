@@ -1,6 +1,5 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -24,7 +23,7 @@
         <sonar.projectVersion>1.0</sonar.projectVersion>
         <sonar.sources>src/main/java</sonar.sources>
         <sonar.java.binaries>target/classes</sonar.java.binaries>
-        
+
         <!-- Report Paths for SonarQube Import -->
         <sonar.java.checkstyle.reportPaths>target/checkstyle-result.xml</sonar.java.checkstyle.reportPaths>
         <sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
@@ -55,6 +54,11 @@
         <dependency>
             <groupId>org.thymeleaf.extras</groupId>
             <artifactId>thymeleaf-extras-springsecurity6</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>com.mysql</groupId>

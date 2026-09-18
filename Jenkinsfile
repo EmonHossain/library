@@ -9,6 +9,9 @@ pipeline {
 
     environment {
         NEXUS_CREDS = credentials('6e114bfa-4783-40a7-b859-8390849767df')
+        AWS_ECR_CREDS = credentials('ecr:us-east-1:awscreds')
+        IMAGE_NAME = "637254479904.dkr.ecr.us-east-1.amazonaws.com/jenkins/images"
+        ARTIFACT_REGISTRY = "637254479904.dkr.ecr.us-east-1.amazonaws.com"
         //registryCredential = 'ecr:us-east-1:awscreds'
         //imageName = "716657688884.dkr.ecr.us-east-1.amazonaws.com/vprofileappimg"
         //vprofileRegistry = "https://716657688884.dkr.ecr.us-east-1.amazonaws.com"
@@ -62,6 +65,38 @@ pipeline {
                         -Dnexus.username=${NEXUS_CREDS_USR} \
                         -Dnexus.password=${NEXUS_CREDS_PSW}
                 '''
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                echo "=== Building and Pushing Docker Image ==="
+                script {
+                    dockerImage = docker.build(IMAGE_NAME +":$BUILD_NUMBER", "Dockerfile")
+
+                }
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                echo "=== Pushing Docker Image to Registry ==="
+                script {
+                    docker.withRegistry(BUILD_REGISTRY, AWS_ECR_CREDS) {
+                        dockerImage.push("$BUILD_NUMBER")
+                        dockerImage.push('latest')
+                    }
+                }
+            }
+        }
+
+        stage('Cleanup Docker Images') {
+            steps {
+                echo "=== Cleaning Up Docker Images ==="
+                //script {
+                //    docker.clean()
+                //}
+                sh 'docker rmi -f $(docker images -a -q)'
             }
         }
     }
