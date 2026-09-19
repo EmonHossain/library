@@ -8,9 +8,9 @@ pipeline {
 
     environment {
         NEXUS_CREDS = credentials('6e114bfa-4783-40a7-b859-8390849767df')
-        def AWS_ECR_CREDS = 'ecr:us-east-1:awscreds'
+        AWS_ECR_CREDS = 'ecr:us-east-1:awscreds'
 
-        def IMAGE_NAME = "jenkins/images"
+        IMAGE_NAME = "jenkins/images"
         ARTIFACT_REGISTRY = "637254479904.dkr.ecr.us-east-1.amazonaws.com"
     }
 
