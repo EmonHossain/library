@@ -2,11 +2,15 @@ pipeline {
     
     agent none
 
+    options {
+        skipDefaultCheckout()
+    }
+
     environment {
         NEXUS_CREDS = credentials('6e114bfa-4783-40a7-b859-8390849767df')
-        AWS_ECR_CREDS = credentials('ecr:us-east-1:awscreds')
+        def AWS_ECR_CREDS = 'ecr:us-east-1:awscreds'
 
-        IMAGE_NAME = "jenkins/images"
+        def IMAGE_NAME = "jenkins/images"
         ARTIFACT_REGISTRY = "637254479904.dkr.ecr.us-east-1.amazonaws.com"
     }
 
@@ -188,7 +192,7 @@ pipeline {
                         script {
                             docker.withRegistry(
                                 "https://${ARTIFACT_REGISTRY}",
-                                "${AWS_ECR_CREDS}"
+                                'AWS_ECR_CREDS'
                             ) {
                                 dockerImage.push("${BUILD_NUMBER}")
                                 dockerImage.push("latest")
