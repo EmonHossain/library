@@ -2,11 +2,6 @@ pipeline {
     agent none
 
     parameters {
-        string(
-            name: 'BRANCH_NAME',
-            defaultValue: 'main',
-            description: 'Branch to build and analyze'
-        )
 
         booleanParam(
             name: 'SKIP_APPLICATION_BUILD',
@@ -91,7 +86,8 @@ pipeline {
                 stage('Build, Test & Checkstyle') {
                     steps {
                         echo "=== Running Build, Tests, and Checkstyle ==="
-
+                        echo "Current Jenkins branch: ${env.BRANCH_NAME}"
+                        sh 'git branch --show-current'
                         sh '''
                             mvn -B clean package checkstyle:checkstyle \
                                 -s settings.xml \
@@ -161,8 +157,11 @@ pipeline {
                  */
                 stage('Deploy to Nexus') {
                     when {
-                        expression {
-                            return params.SKIP_NEXUS_DEPLOY
+                        allOf {
+                            branch 'master'
+                            expression {
+                                return params.SKIP_NEXUS_DEPLOY
+                            }
                         }
                     }
                     steps {
