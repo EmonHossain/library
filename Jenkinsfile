@@ -209,10 +209,9 @@ pipeline {
                 stage('Cleanup Docker Images') {
                     steps {
                         echo "=== Cleaning Up Docker Images ==="
-
-                        sh '''
-                            docker rmi -f $(docker images -a -q) || true
-                        '''
+                        script {
+                            dockerImage.remove()
+                        }
                     }
                 }
             }
