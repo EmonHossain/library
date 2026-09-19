@@ -1,6 +1,56 @@
 pipeline {
     agent none
 
+    parameters {
+        string(
+            name: 'BRANCH_NAME',
+            defaultValue: 'main',
+            description: 'Branch to build and analyze'
+        )
+
+        booleanParam(
+            name: 'SKIP_APPLICATION_BUILD',
+            defaultValue: false,
+            description: 'Skip application build and analysis'
+        )
+
+        booleanParam(
+            name: 'SKIP_DOCKER_BUILD',
+            defaultValue: false,
+            description: 'Skip Docker build and push'
+        )
+
+        booleanParam(
+            name: 'SKIP_SONARQUBE_ANALYSIS',
+            defaultValue: false,
+            description: 'Skip SonarQube analysis'
+        )
+
+        booleanParam(
+            name: 'SKIP_NEXUS_DEPLOY',
+            defaultValue: false,
+            description: 'Skip Nexus deployment'
+        )
+
+        booleanParam(
+            name: 'SKIP_CHECKSTYLE',
+            defaultValue: false,
+            description: 'Skip Checkstyle analysis'
+        )
+
+        booleanParam(
+            name: 'SKIP_TESTS',
+            defaultValue: false,
+            description: 'Skip unit tests'
+        )
+
+        booleanParam(
+            name: 'SKIP_QUALITY_GATE',
+            defaultValue: false,
+            description: 'Skip SonarQube Quality Gate check'
+        )
+    }
+
     environment {
         NEXUS_CREDS = credentials('6e114bfa-4783-40a7-b859-8390849767df')
         AWS_ECR_CREDS = 'ecr:us-east-1:awscreds'
@@ -17,7 +67,12 @@ pipeline {
          * ============================================================
          */
         stage('Application Build & Analysis') {
-
+            when {
+                beforeAgent true
+                expression {
+                    return !params.SKIP_APPLICATION_BUILD
+                }
+            }
             agent {
                 label 'docker-app-builder-agent-jdk25'
             }
@@ -60,6 +115,11 @@ pipeline {
                  * ----------------------------------------------------
                  */
                 stage('SonarQube Analysis') {
+                    when {
+                        expression {
+                            return params.SKIP_SONARQUBE_ANALYSIS
+                        }
+                    }
                     steps {
                         echo "=== Starting SonarQube Analysis ==="
 
@@ -80,6 +140,11 @@ pipeline {
                  * ----------------------------------------------------
                  */
                 stage('Quality Gate') {
+                    when {
+                        expression {
+                            return params.SKIP_QUALITY_GATE
+                        }
+                    }
                     steps {
                         echo "=== Waiting for SonarQube Quality Gate Result ==="
 
@@ -95,6 +160,11 @@ pipeline {
                  * ----------------------------------------------------
                  */
                 stage('Deploy to Nexus') {
+                    when {
+                        expression {
+                            return params.SKIP_NEXUS_DEPLOY
+                        }
+                    }
                     steps {
                         echo "=== Deploying Artifacts to Nexus Repository ==="
 
@@ -140,8 +210,18 @@ pipeline {
          * DOCKER BUILD & PUSH
          * ============================================================
          */
-        /*
         stage('Docker Build & Push') {
+            /*
+             * This stage is disabled for now. It can be enabled
+             * when the Docker build and push is required.
+             * ----------------------------------------------------
+             */
+            when {
+                beforeAgent true
+                expression {
+                    return params.SKIP_DOCKER_BUILD
+                }
+            }
 
             agent {
                 label 'docker-image-builder-agent-jdk25'
@@ -151,8 +231,7 @@ pipeline {
                 skipDefaultCheckout()
             }
 
-            stages {*/
-
+            stages {
                 /*
                  * ----------------------------------------------------
                  * DOCKER BUILD
@@ -164,30 +243,27 @@ pipeline {
                  * Application Builder.
                  * ----------------------------------------------------
                  */
-                /*
                 stage('Docker Build') {
                     steps {
                         echo "=== Restoring Docker Build Artifacts ==="
-
+                        // unstash 'docker-build-artifacts'
                         unstash 'docker-build-artifacts'
 
                         echo "=== Building Docker Image ==="
 
                         script {
                             dockerImage = docker.build(
-                                "${ARTIFACT_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}",
-                                "."
+                                "${ARTIFACT_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}","."
                             )
                         }
                     }
-                }*/
+                }
 
                 /*
                  * ----------------------------------------------------
                  * DOCKER PUSH
                  * ----------------------------------------------------
                  */
-                /*
                 stage('Docker Push') {
                     steps {
                         echo "=== Pushing Docker Image to AWS ECR ==="
@@ -202,14 +278,13 @@ pipeline {
 
                         echo "=== Docker Image to AWS ECR Done ==="
                     }
-                }*/
+                }
 
                 /*
                  * ----------------------------------------------------
                  * CLEANUP
                  * ----------------------------------------------------
                  */
-                 /*
                 stage('Cleanup Docker Images') {
                     steps {
                         echo "=== Cleaning Up Docker Images ==="
@@ -219,6 +294,6 @@ pipeline {
                     }
                 }
             }
-        }*/
+        }
     }
 }
