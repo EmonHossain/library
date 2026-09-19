@@ -1,10 +1,5 @@
 pipeline {
-    
     agent none
-
-    options {
-        skipDefaultCheckout()
-    }
 
     environment {
         NEXUS_CREDS = credentials('6e114bfa-4783-40a7-b859-8390849767df')
@@ -139,6 +134,7 @@ pipeline {
             }
         }
 
+
         /*
          * ============================================================
          * DOCKER BUILD & PUSH
@@ -148,6 +144,10 @@ pipeline {
 
             agent {
                 label 'docker-image-builder-agent-jdk25'
+            }
+
+            options {
+                skipDefaultCheckout()
             }
 
             stages {
