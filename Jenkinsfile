@@ -191,13 +191,13 @@ pipeline {
 
                         script {
                             docker.withRegistry(
-                                "https://${ARTIFACT_REGISTRY}",
-                                'AWS_ECR_CREDS'
-                            ) {
+                                "https://${ARTIFACT_REGISTRY}",AWS_ECR_CREDS) {
                                 dockerImage.push("${BUILD_NUMBER}")
                                 dockerImage.push("latest")
                             }
                         }
+
+                        echo "=== Docker Image to AWS ECR Done ==="
                     }
                 }
 
