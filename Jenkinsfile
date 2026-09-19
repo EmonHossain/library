@@ -45,12 +45,12 @@ pipeline {
                         '''
 
                         echo "=== Stashing Docker Build Artifacts ==="
-
+                        /*
                         stash(
                             name: 'docker-build-artifacts',
                             includes: 'Dockerfile,target/*.jar',
                             allowEmpty: false
-                        )
+                        )*/
                     }
                 }
 
@@ -106,7 +106,7 @@ pipeline {
                                 -Dnexus.password=${NEXUS_CREDS_PSW}
                         '''
                         script {
-                            currentBuild.description = """  <a href="http://nexus:8081/#browse/browse:maven-snapshots:com/example/library-management-system/0.0.1-SNAPSHOT">
+                            currentBuild.description = """  <a href="http://localhost:8081/#browse/browse:maven-snapshots:com/example/library-management-system/0.0.1-SNAPSHOT">
                                                                 Nexus Artifact
                                                             </a>"""
                         }
@@ -140,6 +140,7 @@ pipeline {
          * DOCKER BUILD & PUSH
          * ============================================================
          */
+        /*
         stage('Docker Build & Push') {
 
             agent {
@@ -150,7 +151,7 @@ pipeline {
                 skipDefaultCheckout()
             }
 
-            stages {
+            stages {*/
 
                 /*
                  * ----------------------------------------------------
@@ -163,6 +164,7 @@ pipeline {
                  * Application Builder.
                  * ----------------------------------------------------
                  */
+                /*
                 stage('Docker Build') {
                     steps {
                         echo "=== Restoring Docker Build Artifacts ==="
@@ -178,13 +180,14 @@ pipeline {
                             )
                         }
                     }
-                }
+                }*/
 
                 /*
                  * ----------------------------------------------------
                  * DOCKER PUSH
                  * ----------------------------------------------------
                  */
+                /*
                 stage('Docker Push') {
                     steps {
                         echo "=== Pushing Docker Image to AWS ECR ==="
@@ -199,13 +202,14 @@ pipeline {
 
                         echo "=== Docker Image to AWS ECR Done ==="
                     }
-                }
+                }*/
 
                 /*
                  * ----------------------------------------------------
                  * CLEANUP
                  * ----------------------------------------------------
                  */
+                 /*
                 stage('Cleanup Docker Images') {
                     steps {
                         echo "=== Cleaning Up Docker Images ==="
@@ -215,6 +219,6 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
     }
 }
