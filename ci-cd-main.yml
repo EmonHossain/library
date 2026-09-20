@@ -123,7 +123,14 @@ jobs:
           echo "=== Building Application ==="
           echo "Branch: ${GITHUB_REF_NAME}"
 
-          mvn -B clean package -DskipTests
+          mvn -B clean package \
+            -DskipTests \
+            -s settings.xml \
+            -Dnexus.username="${NEXUS_USERNAME}" \
+            -Dnexus.password="${NEXUS_PASSWORD}"
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
 
 
       # ========================================================
@@ -150,8 +157,16 @@ jobs:
           }}
         run: |
           echo "=== Running Unit Tests ==="
-          mvn -B test
-        
+
+          mvn -B test \
+            -s settings.xml \
+            -Dnexus.username="${NEXUS_USERNAME}" \
+            -Dnexus.password="${NEXUS_PASSWORD}"
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+
+
       - name: Upload Test Results
         if: >
           ${{
@@ -184,8 +199,16 @@ jobs:
           }}
         run: |
           echo "=== Running Checkstyle Analysis ==="
-          mvn -B checkstyle:checkstyle
-        
+
+          mvn -B checkstyle:checkstyle \
+            -s settings.xml \
+            -Dnexus.username="${NEXUS_USERNAME}" \
+            -Dnexus.password="${NEXUS_PASSWORD}"
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+
+
       - name: Upload Checkstyle Results
         if: >
           ${{
@@ -201,6 +224,88 @@ jobs:
           name: checkstyle-results
           path: target/checkstyle-result.xml
           if-no-files-found: ignore
+
+
+      # --------------------------------------------------------
+      # SONARQUBE
+      # --------------------------------------------------------
+
+      - name: SonarQube Analysis
+        if: >
+          ${{
+            github.ref == 'refs/heads/master' &&
+            (
+              github.event_name != 'workflow_dispatch' ||
+              inputs.active_sonarqube_analysis
+            )
+          }}
+        run: |
+          echo "=== Starting SonarQube Analysis ==="
+
+          mvn -B sonar:sonar \
+            -s settings.xml \
+            -Dnexus.username="${NEXUS_USERNAME}" \
+            -Dnexus.password="${NEXUS_PASSWORD}" \
+            -Dsonar.host.url="${SONAR_HOST_URL}" \
+            -Dsonar.token="${SONAR_TOKEN}"
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+
+      # --------------------------------------------------------
+      # SONARQUBE QUALITY GATE
+      #
+      # Requires SonarQube analysis to be active.
+      # --------------------------------------------------------
+
+      - name: SonarQube Quality Gate
+        if: >
+          ${{
+            github.ref == 'refs/heads/master' &&
+            (
+              github.event_name != 'workflow_dispatch' ||
+              (
+                inputs.active_sonarqube_analysis &&
+                inputs.active_quality_gate
+              )
+            )
+          }}
+        uses: sonarsource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+
+      # --------------------------------------------------------
+      # NEXUS DEPLOY
+      #
+      # Master only.
+      # --------------------------------------------------------
+
+      - name: Deploy to Nexus
+        if: >
+          ${{
+            github.ref == 'refs/heads/master' &&
+            (
+              github.event_name != 'workflow_dispatch' ||
+              inputs.active_nexus_deploy
+            )
+          }}
+        run: |
+          echo "=== Deploying Artifact to Nexus ==="
+
+          mvn -B deploy \
+            -DskipTests \
+            -s settings.xml \
+            -Dnexus.username="${NEXUS_USERNAME}" \
+            -Dnexus.password="${NEXUS_PASSWORD}"
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+
 
       # --------------------------------------------------------
       # PREPARE DOCKER ARTIFACT
