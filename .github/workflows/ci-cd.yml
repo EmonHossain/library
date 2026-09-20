@@ -1,0 +1,510 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+
+  pull_request:
+
+  workflow_dispatch:
+    inputs:
+      active_application_build:
+        description: "Run application build"
+        required: false
+        default: true
+        type: boolean
+
+      active_tests:
+        description: "Run unit tests"
+        required: false
+        default: true
+        type: boolean
+
+      active_checkstyle:
+        description: "Run Checkstyle analysis"
+        required: false
+        default: true
+        type: boolean
+
+      active_sonarqube_analysis:
+        description: "Run SonarQube analysis"
+        required: false
+        default: true
+        type: boolean
+
+      active_quality_gate:
+        description: "Run SonarQube Quality Gate"
+        required: false
+        default: true
+        type: boolean
+
+      active_nexus_deploy:
+        description: "Deploy Maven artifact to Nexus"
+        required: false
+        default: true
+        type: boolean
+
+      # Intentionally inactive for now
+      active_docker_build:
+        description: "Build and push Docker image"
+        required: false
+        default: false
+        type: boolean
+
+      # Intentionally inactive for now
+      active_ecs_deploy:
+        description: "Deploy to AWS ECS"
+        required: false
+        default: false
+        type: boolean
+
+
+env:
+  AWS_REGION: us-east-1
+  ARTIFACT_REGISTRY: 637254479904.dkr.ecr.us-east-1.amazonaws.com
+  IMAGE_NAME: jenkins/images
+
+
+jobs:
+
+  # ============================================================
+  # APPLICATION BUILD
+  #
+  # All branches:
+  #   Build = active
+  #
+  # Master:
+  #   Additional analysis/deployment stages can run
+  # ============================================================
+
+  application-build:
+    name: Application Build & Analysis
+    runs-on: ubuntu-latest
+
+    # Automatic push/PR -> build
+    # Manual execution -> controlled by active_application_build
+    if: >
+      ${{
+        github.event_name != 'workflow_dispatch' ||
+        inputs.active_application_build
+      }}
+
+    steps:
+
+      # --------------------------------------------------------
+      # CHECKOUT
+      # --------------------------------------------------------
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
+      # --------------------------------------------------------
+      # JAVA / MAVEN
+      # --------------------------------------------------------
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+
+      # --------------------------------------------------------
+      # BUILD
+      #
+      # Runs on ALL branches.
+      # Tests are skipped here because they have their own
+      # controllable step below.
+      # --------------------------------------------------------
+
+      - name: Build Application
+        run: |
+          echo "=== Building Application ==="
+          echo "Branch: ${GITHUB_REF_NAME}"
+
+          mvn -B clean package \
+            -DskipTests \
+            -s settings.xml \
+            -Dnexus.username="${NEXUS_USERNAME}" \
+            -Dnexus.password="${NEXUS_PASSWORD}"
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+
+
+      # ========================================================
+      # MASTER-ONLY STAGES
+      # ========================================================
+
+
+      # --------------------------------------------------------
+      # UNIT TESTS
+      #
+      # Automatic master push -> active
+      # Manual master run     -> controlled by input
+      # Other branches        -> inactive
+      # --------------------------------------------------------
+
+      - name: Unit Tests
+        if: >
+          ${{
+            github.ref == 'refs/heads/master' &&
+            (
+              github.event_name != 'workflow_dispatch' ||
+              inputs.active_tests
+            )
+          }}
+        run: |
+          echo "=== Running Unit Tests ==="
+
+          mvn -B test \
+            -s settings.xml \
+            -Dnexus.username="${NEXUS_USERNAME}" \
+            -Dnexus.password="${NEXUS_PASSWORD}"
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+
+
+      - name: Upload Test Results
+        if: >
+          ${{
+            always() &&
+            github.ref == 'refs/heads/master' &&
+            (
+              github.event_name != 'workflow_dispatch' ||
+              inputs.active_tests
+            )
+          }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: target/surefire-reports/*.xml
+          if-no-files-found: ignore
+
+
+      # --------------------------------------------------------
+      # CHECKSTYLE
+      # --------------------------------------------------------
+
+      - name: Checkstyle Analysis
+        if: >
+          ${{
+            github.ref == 'refs/heads/master' &&
+            (
+              github.event_name != 'workflow_dispatch' ||
+              inputs.active_checkstyle
+            )
+          }}
+        run: |
+          echo "=== Running Checkstyle Analysis ==="
+
+          mvn -B checkstyle:checkstyle \
+            -s settings.xml \
+            -Dnexus.username="${NEXUS_USERNAME}" \
+            -Dnexus.password="${NEXUS_PASSWORD}"
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+
+
+      - name: Upload Checkstyle Results
+        if: >
+          ${{
+            always() &&
+            github.ref == 'refs/heads/master' &&
+            (
+              github.event_name != 'workflow_dispatch' ||
+              inputs.active_checkstyle
+            )
+          }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkstyle-results
+          path: target/checkstyle-result.xml
+          if-no-files-found: ignore
+
+
+      # --------------------------------------------------------
+      # SONARQUBE
+      # --------------------------------------------------------
+
+      - name: SonarQube Analysis
+        if: >
+          ${{
+            github.ref == 'refs/heads/master' &&
+            (
+              github.event_name != 'workflow_dispatch' ||
+              inputs.active_sonarqube_analysis
+            )
+          }}
+        run: |
+          echo "=== Starting SonarQube Analysis ==="
+
+          mvn -B sonar:sonar \
+            -s settings.xml \
+            -Dnexus.username="${NEXUS_USERNAME}" \
+            -Dnexus.password="${NEXUS_PASSWORD}" \
+            -Dsonar.host.url="${SONAR_HOST_URL}" \
+            -Dsonar.token="${SONAR_TOKEN}"
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+
+      # --------------------------------------------------------
+      # SONARQUBE QUALITY GATE
+      #
+      # Requires SonarQube analysis to be active.
+      # --------------------------------------------------------
+
+      - name: SonarQube Quality Gate
+        if: >
+          ${{
+            github.ref == 'refs/heads/master' &&
+            (
+              github.event_name != 'workflow_dispatch' ||
+              (
+                inputs.active_sonarqube_analysis &&
+                inputs.active_quality_gate
+              )
+            )
+          }}
+        uses: sonarsource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+
+      # --------------------------------------------------------
+      # NEXUS DEPLOY
+      #
+      # Master only.
+      # --------------------------------------------------------
+
+      - name: Deploy to Nexus
+        if: >
+          ${{
+            github.ref == 'refs/heads/master' &&
+            (
+              github.event_name != 'workflow_dispatch' ||
+              inputs.active_nexus_deploy
+            )
+          }}
+        run: |
+          echo "=== Deploying Artifact to Nexus ==="
+
+          mvn -B deploy \
+            -DskipTests \
+            -s settings.xml \
+            -Dnexus.username="${NEXUS_USERNAME}" \
+            -Dnexus.password="${NEXUS_PASSWORD}"
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+
+
+      # --------------------------------------------------------
+      # PREPARE DOCKER ARTIFACT
+      #
+      # Docker is intentionally inactive by default.
+      # --------------------------------------------------------
+
+      - name: Prepare Docker Build Artifacts
+        if: >
+          ${{
+            github.ref == 'refs/heads/master' &&
+            github.event_name == 'workflow_dispatch' &&
+            inputs.active_docker_build
+          }}
+        run: |
+          echo "=== Preparing Docker Build Artifacts ==="
+
+          mkdir -p docker-build-artifacts
+
+          cp Dockerfile docker-build-artifacts/
+          cp target/*.jar docker-build-artifacts/
+
+          if [ -f ecs-task-definition.json ]; then
+            cp ecs-task-definition.json docker-build-artifacts/
+          fi
+
+
+      - name: Upload Docker Build Artifacts
+        if: >
+          ${{
+            github.ref == 'refs/heads/master' &&
+            github.event_name == 'workflow_dispatch' &&
+            inputs.active_docker_build
+          }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-build-artifacts
+          path: docker-build-artifacts/
+          if-no-files-found: error
+
+
+  # ============================================================
+  # DOCKER BUILD & PUSH
+  #
+  # INTENTIONALLY INACTIVE FOR NORMAL BUILDS.
+  #
+  # Can currently only be activated manually on master.
+  # ============================================================
+
+  docker-build:
+    name: Docker Build & Push
+
+    needs:
+      - application-build
+
+    if: >
+      ${{
+        github.ref == 'refs/heads/master' &&
+        github.event_name == 'workflow_dispatch' &&
+        inputs.active_docker_build
+      }}
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+
+      # --------------------------------------------------------
+      # JENKINS UNSTASH EQUIVALENT
+      # --------------------------------------------------------
+
+      - name: Download Docker Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-build-artifacts
+          path: .
+
+
+      # --------------------------------------------------------
+      # AWS AUTHENTICATION
+      #
+      # Uses GitHub OIDC instead of permanent AWS keys.
+      # --------------------------------------------------------
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+
+      # --------------------------------------------------------
+      # ECR LOGIN
+      # --------------------------------------------------------
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+
+      # --------------------------------------------------------
+      # DOCKER BUILD
+      # --------------------------------------------------------
+
+      - name: Build Docker Image
+        run: |
+          echo "=== Building Docker Image ==="
+
+          IMAGE="${ARTIFACT_REGISTRY}/${IMAGE_NAME}"
+
+          docker build \
+            -t "${IMAGE}:${GITHUB_RUN_NUMBER}" \
+            .
+
+
+      # --------------------------------------------------------
+      # DOCKER PUSH
+      # --------------------------------------------------------
+
+      - name: Push Docker Image
+        run: |
+          echo "=== Pushing Docker Image to AWS ECR ==="
+
+          IMAGE="${ARTIFACT_REGISTRY}/${IMAGE_NAME}"
+
+          docker push "${IMAGE}:${GITHUB_RUN_NUMBER}"
+
+          docker tag \
+            "${IMAGE}:${GITHUB_RUN_NUMBER}" \
+            "${IMAGE}:latest"
+
+          docker push "${IMAGE}:latest"
+
+          echo "=== Docker Image Push Complete ==="
+
+
+      # ========================================================
+      # ECS
+      #
+      # INTENTIONALLY INACTIVE BY DEFAULT.
+      #
+      # ECS also requires Docker to be active so we don't
+      # accidentally deploy without building a new image.
+      # ========================================================
+
+      - name: Register ECS Task Definition
+        if: >
+          ${{
+            inputs.active_docker_build &&
+            inputs.active_ecs_deploy
+          }}
+        run: |
+          echo "=== Registering ECS Task Definition ==="
+
+          aws ecs register-task-definition \
+            --cli-input-json file://ecs-task-definition.json
+
+
+      - name: Deploy to ECS
+        if: >
+          ${{
+            inputs.active_docker_build &&
+            inputs.active_ecs_deploy
+          }}
+        run: |
+          echo "=== Deploying to AWS ECS ==="
+
+          TASK_REVISION=$(aws ecs describe-task-definition \
+            --task-definition lms-task \
+            --query 'taskDefinition.revision' \
+            --output text)
+
+          echo "Task revision: ${TASK_REVISION}"
+
+          aws ecs update-service \
+            --cluster libraby-management \
+            --service lms-task-service \
+            --task-definition "lms-task:${TASK_REVISION}"
+
+          echo "=== ECS Deployment Complete ==="
+
+
+      # --------------------------------------------------------
+      # CLEANUP
+      # --------------------------------------------------------
+
+      - name: Cleanup Docker Images
+        if: ${{ always() }}
+        run: |
+          echo "=== Cleaning Up Docker Images ==="
+
+          IMAGE="${ARTIFACT_REGISTRY}/${IMAGE_NAME}"
+
+          docker image rm \
+            "${IMAGE}:${GITHUB_RUN_NUMBER}" \
+            || true
+
+          docker image rm \
+            "${IMAGE}:latest" \
+            || true
