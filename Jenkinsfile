@@ -10,12 +10,6 @@ pipeline {
         )
 
         booleanParam(
-            name: 'SKIP_DOCKER_BUILD',
-            defaultValue: false,
-            description: 'Skip Docker build and push'
-        )
-
-        booleanParam(
             name: 'SKIP_SONARQUBE_ANALYSIS',
             defaultValue: false,
             description: 'Skip SonarQube analysis'
@@ -43,6 +37,18 @@ pipeline {
             name: 'SKIP_QUALITY_GATE',
             defaultValue: false,
             description: 'Skip SonarQube Quality Gate check'
+        )
+
+        booleanParam(
+            name: 'SKIP_DOCKER_BUILD',
+            defaultValue: false,
+            description: 'Skip Docker build and push'
+        )
+
+        booleanParam(
+            name: 'SKIP_ECS_DEPLOY',
+            defaultValue: false,
+            description: 'Skip Deployment to AWS ECS'
         )
     }
 
@@ -102,6 +108,15 @@ pipeline {
                             includes: 'Dockerfile,target/*.jar',
                             allowEmpty: false
                         )*/
+                    }
+
+                    post {
+                        always {
+                            echo "=== Recording Test Results ==="
+
+                            junit 'target/surefire-reports/*.xml'
+                            allowEmptyResults: true
+                        }
                     }
                 }
 
@@ -277,6 +292,53 @@ pipeline {
 
                         echo "=== Docker Image to AWS ECR Done ==="
                     }
+                }
+
+                stage('Register ECS Task Definition') {
+                    when {
+                        expression {
+                            return params.SKIP_ECS_DEPLOY
+                        }
+                    }
+                    steps {
+                        echo "=== Registering Docker Image in AWS ECS ==="
+
+                        script {
+                            withAWS(region: 'us-east-1', credentials: AWS_ECR_CREDS) {
+                                sh '''
+                                    aws ecs register-task-definition \
+                                        --cli-input-json file://ecs-task-definition.json
+                                '''
+                            }
+                        }
+                    }
+                }
+
+                stage('Deploy to ECS') {
+                    when {
+                        expression {
+                            return params.SKIP_ECS_DEPLOY
+                        }
+                    }
+                    steps {
+                        echo "=== Deploying Docker Image to AWS ECS ==="
+
+                        script {
+                            withAWS(region: 'us-east-1', credentials: AWS_ECR_CREDS) {
+                                sh '''
+                                    TASK_REVISION=$(aws ecs describe-task-definition \
+                                        --task-definition lms-task \
+                                        --query 'taskDefinition.revision' \
+                                        --output text)
+                                    aws ecs update-service \
+                                        --cluster libraby-management \
+                                        --service lms-task-service \
+                                        --task-definition lms-task:$TASK_REVISION
+                                '''
+                            }
+                        }
+                    }
+
                 }
 
                 /*
