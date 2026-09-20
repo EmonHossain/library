@@ -223,10 +223,6 @@ jobs:
           cp Dockerfile docker-build-artifacts/
           cp target/*.jar docker-build-artifacts/
 
-          if [ -f ecs-task-definition.json ]; then
-            cp ecs-task-definition.json docker-build-artifacts/
-          fi
-
 
       - name: Upload Docker Build Artifacts
         if: >
@@ -281,28 +277,6 @@ jobs:
           name: docker-build-artifacts
           path: .
 
-
-      # --------------------------------------------------------
-      # AWS AUTHENTICATION
-      #
-      # Uses GitHub OIDC instead of permanent AWS keys.
-      # --------------------------------------------------------
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-
-      # --------------------------------------------------------
-      # ECR LOGIN
-      # --------------------------------------------------------
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
-
-
       # --------------------------------------------------------
       # DOCKER BUILD
       # --------------------------------------------------------
@@ -316,75 +290,6 @@ jobs:
           docker build \
             -t "${IMAGE}:${GITHUB_RUN_NUMBER}" \
             .
-
-
-      # --------------------------------------------------------
-      # DOCKER PUSH
-      # --------------------------------------------------------
-
-      - name: Push Docker Image
-        run: |
-          echo "=== Pushing Docker Image to AWS ECR ==="
-
-          IMAGE="${ARTIFACT_REGISTRY}/${IMAGE_NAME}"
-
-          docker push "${IMAGE}:${GITHUB_RUN_NUMBER}"
-
-          docker tag \
-            "${IMAGE}:${GITHUB_RUN_NUMBER}" \
-            "${IMAGE}:latest"
-
-          docker push "${IMAGE}:latest"
-
-          echo "=== Docker Image Push Complete ==="
-
-
-      # ========================================================
-      # ECS
-      #
-      # INTENTIONALLY INACTIVE BY DEFAULT.
-      #
-      # ECS also requires Docker to be active so we don't
-      # accidentally deploy without building a new image.
-      # ========================================================
-
-      - name: Register ECS Task Definition
-        if: >
-          ${{
-            inputs.active_docker_build &&
-            inputs.active_ecs_deploy
-          }}
-        run: |
-          echo "=== Registering ECS Task Definition ==="
-
-          aws ecs register-task-definition \
-            --cli-input-json file://ecs-task-definition.json
-
-
-      - name: Deploy to ECS
-        if: >
-          ${{
-            inputs.active_docker_build &&
-            inputs.active_ecs_deploy
-          }}
-        run: |
-          echo "=== Deploying to AWS ECS ==="
-
-          TASK_REVISION=$(aws ecs describe-task-definition \
-            --task-definition lms-task \
-            --query 'taskDefinition.revision' \
-            --output text)
-
-          echo "Task revision: ${TASK_REVISION}"
-
-          aws ecs update-service \
-            --cluster libraby-management \
-            --service lms-task-service \
-            --task-definition "lms-task:${TASK_REVISION}"
-
-          echo "=== ECS Deployment Complete ==="
-
-
       # --------------------------------------------------------
       # CLEANUP
       # --------------------------------------------------------
